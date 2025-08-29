@@ -1,0 +1,80 @@
+/* static/css/style.css */
+:root{
+  --bg:#000;
+  --card:#0d0d0f;
+  --muted:#9aa0a6;
+  --accent:#00e5d3;
+  --accent-2:#00cfff;
+  --text:#fff;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+}
+
+/* grid layout */
+.dashboard{
+  display:grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 0.9fr;
+  gap:18px;
+  height:100vh;
+  padding:22px;
+}
+
+/* card base */
+.card{
+  background: linear-gradient(180deg, #0b0b0b, #121212);
+  padding:18px;
+  border-radius:12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+
+/* clock */
+.clock-section{ grid-column:1/2; grid-row:1/2; display:flex; flex-direction:column; justify-content:center; padding-left:36px;}
+.clock{ font-size:100px; font-weight:800; letter-spacing:1px; margin:0; font-weight: bold;}
+.date{ font-size:20px; color:var(--muted); margin-top:6px; }
+
+/* bus */
+
+.bus-section{ grid-column:2/3; grid-row:1/2; overflow:auto; }
+.bus-footer{ margin-top:10px; }
+.stop-title{ font-weight:800; color:var(--muted); font-size:14px; }
+.stop-sub{ color:#8b8f95; font-size:12px; margin-top:6px; }
+.updated{ color:#888; font-size:12px; margin-top:6px; }
+.bus-list{ margin-top:10px; }
+.bus-item{ padding:10px 6px; border-bottom:1px dashed rgba(255,255,255,0.04); }
+.bus-item .route{ color: var(--accent-2); font-weight:800; font-size:16px; margin-bottom:6px; display: none;}
+.bus-item .detail{ color:#dfe7ea; font-size:20px; }
+.bus-group-header {font-weight: bold; color: var(--accent-2); font-size: 1.1em; margin-top: 10px; margin-bottom: 4px; letter-spacing: 1px;}
+
+/* weather */
+
+.weather-section{ grid-column:1/3; grid-row:2/3; display:flex; flex-direction:column; gap:12px; }
+.weather-top{ display:flex; justify-content:space-between; align-items:center; }
+.weather-current{ display:flex; gap:14px; align-items:center; }
+.weather-current img{ width:68px; height:68px; }
+.w-cond{ font-size:18px; font-weight:700; color:#fff; }
+.w-temp{ font-size:22px; font-weight:800; color:#ffd166; margin-top:6px; }
+.w-feels{ color:var(--muted); font-size:13px; margin-top:6px; }
+.w-avg{ font-weight:700; color:#fff; }
+.w-sun{ color:var(--muted); font-size:13px; }
+
+/* hourly strip */
+.hourly-strip{ display:flex; gap:12px; margin-top:10px; overflow:auto; padding-bottom:6px; }
+.hour-card{ background:#0f1720; min-width:110px; padding:8px; border-radius:8px; text-align:center; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+.hour-card .hour-time{ color:var(--accent); font-weight:700; margin-bottom:6px; }
+.hour-card .hour-icon{ width:48px; height:48px; margin-bottom:6px; }
+.hour-card .hour-temp{ font-weight:800; font-size:16px; }
+.hour-card .hour-rain{ color:#6fb6ff; font-size:13px; margin-top:6px; }
+
+/* responsive tweaks */
+@media (max-width: 900px){
+  .dashboard{ grid-template-columns: 1fr; grid-template-rows: auto; padding:12px; gap:12px; }
+  .clock{ font-size:70px; font-weight:800; letter-spacing:1px; margin:0; font-weight: bold; }
+  .hour-card{ min-width:90px; }
+}
