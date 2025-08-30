@@ -64,9 +64,10 @@ setInterval(tickClock, 1000);
 tickClock();
 
 /* Fetch weather from Worker endpoint */
+/* Fetch weather from Worker endpoint */
 async function loadWeather() {
   try {
-    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/weather");
+    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/weather", { cache: "no-store" });
     const j = await res.json();
     if (!j) return;
 
@@ -101,7 +102,7 @@ async function loadWeather() {
 /* Fetch bus data from Worker endpoint */
 async function loadBus() {
   try {
-    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/bus");
+    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/bus", { cache: "no-store" });
     const j = await res.json();
     const list = document.getElementById('bus-list');
     list.innerHTML = '';
