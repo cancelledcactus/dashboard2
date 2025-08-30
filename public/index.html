@@ -66,7 +66,7 @@ tickClock();
 /* Fetch weather from Worker endpoint */
 async function loadWeather() {
   try {
-    const res = await fetch("/api/weather");
+    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/weather");
     const j = await res.json();
     if (!j) return;
 
@@ -101,7 +101,7 @@ async function loadWeather() {
 /* Fetch bus data from Worker endpoint */
 async function loadBus() {
   try {
-    const res = await fetch("/api/bus");
+    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/bus");
     const j = await res.json();
     const list = document.getElementById('bus-list');
     list.innerHTML = '';
