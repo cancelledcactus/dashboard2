@@ -46,7 +46,7 @@ body{
 .stop-title{ font-weight:800; color:var(--muted); font-size:14px; }
 .stop-sub{ color:#8b8f95; font-size:12px; margin-top:6px; }
 .updated{ color:#888; font-size:12px; margin-top:6px; }
-.bus-list{ margin-top:10px; }
+.bus-list{ margin-top: 5px; }
 .bus-item{ padding:10px 6px; border-bottom:1px dashed rgba(255,255,255,0.04); }
 .bus-item .route{ color: var(--accent-2); font-weight:800; font-size:16px; margin-bottom:6px; display: none;}
 .bus-item .detail{ color:#dfe7ea; font-size:20px; }
