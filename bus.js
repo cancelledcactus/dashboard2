@@ -3,7 +3,7 @@ const STOP_ID = "502174";
 const BUS_URL = "https://bustime.mta.info/api/siri/stop-monitoring.json";
 
 const SHOW_START = 6;   // 6 AM
-const SHOW_END = 23;    // 1 PM (adjust if needed)
+const SHOW_END = 24;    // 1 PM (adjust if needed)
 
 function shouldShowBus() {
   const now = new Date();
