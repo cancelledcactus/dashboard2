@@ -5,7 +5,7 @@ const BUS_URL = "https://bustime.mta.info/api/siri/stop-monitoring.json";
 const SHOW_START = 6;   // 6 AM
 const SHOW_END = 24;    // 1 PM (adjust if needed)
 
-function shouldShowBus() {
+/*function shouldShowBus() {
   const now = new Date();
   const h = now.getHours();
 
@@ -16,7 +16,7 @@ function shouldShowBus() {
     // Overnight range (e.g., 19 to 1)
     return h >= SHOW_START || h < SHOW_END;
   }
-}
+}*/
 
 function scheduledTimeStr() {
   const date = new Date();
