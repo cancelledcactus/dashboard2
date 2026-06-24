@@ -89,10 +89,10 @@ body{
 .slide--home{ flex-direction:row; }
 
 .home-clock{
-  flex:1.25; display:flex; flex-direction:column; justify-content:center;
-  padding-left:18px;
+  flex:1.25; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; padding:0 12px;
 }
-.clock{ display:flex; align-items:baseline; gap:.06em; line-height:.92; }
+.clock{ display:flex; align-items:baseline; justify-content:center; gap:.06em; line-height:.92; }
 .clock-time{
   font-size:clamp(52px,13vw,128px);   /* sized so "12:45 PM" never clips */
   font-weight:800; letter-spacing:1px;
