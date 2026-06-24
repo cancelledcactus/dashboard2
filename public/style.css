@@ -131,27 +131,37 @@ body{
 .bus-empty{ color:var(--muted); text-align:center; padding:46px 10px; font-size:clamp(14px,2.4vw,18px); }
 .updated{ color:var(--muted); opacity:.7; font-size:11px; margin-top:8px; letter-spacing:.4px; }
 
-/* ---------- Slide 2: weather ---------- */
+/* ---------- Slide 2: weather (big, glanceable hero) ---------- */
 .slide--weather{ flex-direction:column; }
 .weather-card{
-  flex:1; display:flex; flex-direction:column; gap:16px; overflow:hidden;
+  flex:1; display:flex; flex-direction:column; gap:10px; overflow:hidden;
   /* .weather-card background is set per-condition by applyWeatherTint() */
 }
-.weather-top{ display:flex; justify-content:space-between; align-items:center; }
-.weather-current{ display:flex; gap:16px; align-items:center; }
-.weather-current img{ width:clamp(58px,11vw,86px); height:clamp(58px,11vw,86px);
-  filter:drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
-.w-cond{ font-size:clamp(17px,2.7vw,23px); font-weight:700; }
-.w-temp{ font-size:clamp(30px,5.4vw,46px); font-weight:800; margin-top:2px;
-  color:var(--text); text-shadow:0 0 26px var(--glow); transition:text-shadow .8s ease; }
-.w-feels{ color:var(--muted); font-size:clamp(12px,2vw,15px); margin-top:4px; }
-.weather-right{ text-align:right; }
-.w-avg{ font-weight:800; font-size:clamp(16px,2.5vw,21px); }
-.w-sun{ color:var(--accent); font-size:clamp(12px,2vw,15px); margin-top:7px; font-weight:600;
+.wx-hero{
+  flex:1; display:flex; align-items:center; justify-content:center;
+  gap:clamp(14px,3vw,30px);
+}
+.wx-icon{
+  width:clamp(96px,20vw,170px); height:clamp(96px,20vw,170px); flex-shrink:0;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.45));
+}
+.wx-main{ text-align:left; min-width:0; }
+.w-temp{
+  font-size:clamp(64px,15vw,150px); font-weight:800; line-height:.9;
+  color:var(--text); text-shadow:0 0 34px var(--glow); transition:text-shadow .8s ease;
+}
+.w-cond{ font-size:clamp(22px,5vw,42px); font-weight:700; margin-top:8px; }
+.w-feels{ color:var(--muted); font-size:clamp(13px,2.4vw,18px); margin-top:7px; }
+.wx-sub{
+  display:flex; justify-content:center; align-items:baseline;
+  gap:clamp(18px,5vw,46px);
+}
+.w-avg{ font-weight:800; font-size:clamp(15px,2.6vw,22px); }
+.w-sun{ color:var(--accent); font-size:clamp(13px,2.3vw,18px); font-weight:600;
   transition:color .8s ease; }
 
 /* hourly: 6 tiles filling width, no internal scroll (keeps swipe for slides) */
-.hourly-strip{ display:flex; gap:11px; margin-top:auto; }
+.hourly-strip{ display:flex; gap:11px; margin-top:0; }
 .hour-card{
   flex:1 1 0; min-width:0;
   background:rgba(255,255,255,.06);
