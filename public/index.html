@@ -11,6 +11,10 @@
 </head>
 <body>
 
+  <div id="sky-a" class="sky"></div>
+  <div id="sky-b" class="sky"></div>
+  <div id="stars" class="stars"></div>
+
   <div class="slider" id="slider">
     <div class="track" id="track">
 
@@ -32,7 +36,7 @@
 
       <!-- Slide 2: weather -->
       <section class="slide slide--weather">
-        <div class="weather-card card">
+        <div id="weather-card" class="weather-card card">
           <div class="weather-top">
             <div class="weather-current">
               <img id="w-icon" src="" alt="">
@@ -64,6 +68,97 @@ const TZ  = "America/New_York";
 /* tiny helper: only write to the DOM when the value actually changed
    (avoids constant layout/paint churn that leaks memory on a 24/7 kiosk) */
 function setText(el, t){ if (el && el.textContent !== t) el.textContent = t; }
+
+function titleCase(s){ return (s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); }
+
+const hourFmt = new Intl.DateTimeFormat('en-US', { timeZone:'America/New_York', hour:'2-digit', hour12:false });
+function localHour(){ const h = parseInt(hourFmt.format(new Date(Date.now() + timeOffset)), 10); return h === 24 ? 0 : h; }
+
+/* ============================================================
+   DYNAMIC SKY — page background + accent shift with time of day.
+   Cards are dark glass, so text stays readable on every phase.
+   ============================================================ */
+const SKY = {
+  night: {
+    bg:'radial-gradient(120% 85% at 82% -12%, #232c63 0%, rgba(35,44,99,0) 55%), linear-gradient(180deg, #070b22 0%, #0a0f2e 55%, #0d1340 100%)',
+    accent:'#7cc7ff', soft:'#aab8ff', glow:'rgba(124,199,255,.45)', stars:1
+  },
+  dawn: {
+    bg:'radial-gradient(110% 90% at 16% 118%, #f3a868 0%, rgba(243,168,104,0) 46%), linear-gradient(180deg, #20264f 0%, #5b3f6e 50%, #b5627c 100%)',
+    accent:'#ffd6a0', soft:'#ffc1cb', glow:'rgba(255,200,150,.42)', stars:0
+  },
+  day: {
+    bg:'radial-gradient(95% 75% at 84% -8%, #ffe79e 0%, rgba(255,231,158,0) 42%), linear-gradient(180deg, #1d5cab 0%, #2f7fcc 55%, #5aa6e6 100%)',
+    accent:'#ffd24a', soft:'#ffffff', glow:'rgba(255,210,74,.42)', stars:0
+  },
+  golden: {
+    bg:'radial-gradient(110% 90% at 86% 118%, #ffb24a 0%, rgba(255,178,74,0) 46%), linear-gradient(180deg, #2a3568 0%, #7d4a5e 45%, #d2683a 100%)',
+    accent:'#ffd9a0', soft:'#ffb27a', glow:'rgba(255,180,110,.46)', stars:0
+  },
+  dusk: {
+    bg:'radial-gradient(110% 90% at 80% 120%, #d2562f 0%, rgba(210,86,47,0) 44%), linear-gradient(180deg, #141232 0%, #46255c 48%, #8d3a4e 100%)',
+    accent:'#ff9e7a', soft:'#ffc09a', glow:'rgba(255,140,100,.46)', stars:0
+  }
+};
+function phaseForHour(h){
+  if (h >= 21 || h < 5) return 'night';
+  if (h < 8)  return 'dawn';
+  if (h < 17) return 'day';
+  if (h < 19) return 'golden';
+  return 'dusk';
+}
+const skyA = document.getElementById('sky-a');
+const skyB = document.getElementById('sky-b');
+const starsEl = document.getElementById('stars');
+let lastPhase = null, skyTop = skyA;     // skyTop = currently visible layer
+function applySky(){
+  const phase = phaseForHour(localHour());
+  if (phase === lastPhase) return;
+  const s = SKY[phase];
+  const next = (skyTop === skyA) ? skyB : skyA;
+  next.style.backgroundImage = s.bg;
+  // cross-fade
+  next.style.opacity = '1';
+  skyTop.style.opacity = '0';
+  skyTop = next;
+  starsEl.style.opacity = s.stars ? '1' : '0';
+  const r = document.documentElement.style;
+  r.setProperty('--accent', s.accent);
+  r.setProperty('--accent-soft', s.soft);
+  r.setProperty('--glow', s.glow);
+  lastPhase = phase;
+}
+
+/* ============================================================
+   WEATHER CONDITION TINT — slide 2 card reflects the weather.
+   Maps the Tomorrow.io weatherCode to a tinted glass gradient.
+   ============================================================ */
+function weatherCategory(code){
+  const c = Number(code);
+  if (c === 1000 || c === 1100) return 'clear';
+  if (c === 1101 || c === 1102 || c === 1001) return 'clouds';
+  if (c === 2000 || c === 2100) return 'fog';
+  if (c >= 4000 && c < 5000) return 'rain';
+  if ((c >= 5000 && c < 6000) || (c >= 7000 && c < 8000)) return 'snow';
+  if (c >= 6000 && c < 7000) return 'rain';
+  if (c === 8000) return 'storm';
+  return 'clear';
+}
+const WX_TINT = {
+  clearDay:  'linear-gradient(155deg, rgba(58,138,220,.50), rgba(10,16,42,.66))',
+  clearNight:'linear-gradient(155deg, rgba(64,74,156,.50), rgba(8,12,32,.70))',
+  clouds:    'linear-gradient(155deg, rgba(96,114,144,.50), rgba(12,16,34,.70))',
+  fog:       'linear-gradient(155deg, rgba(120,128,142,.48), rgba(12,16,32,.70))',
+  rain:      'linear-gradient(155deg, rgba(40,96,134,.55), rgba(8,14,32,.72))',
+  snow:      'linear-gradient(155deg, rgba(150,182,214,.46), rgba(14,22,44,.70))',
+  storm:     'linear-gradient(155deg, rgba(74,62,116,.55), rgba(8,10,26,.76))'
+};
+const weatherCardEl = document.getElementById('weather-card');
+function applyWeatherTint(code){
+  let cat = weatherCategory(code);
+  if (cat === 'clear') cat = (lastPhase === 'night' || lastPhase === 'dusk') ? 'clearNight' : 'clearDay';
+  weatherCardEl.style.background = WX_TINT[cat] || WX_TINT.clearNight;
+}
 
 /* ============================================================
    CLOCK — synced to the Worker's /api/time, then ticked locally.
@@ -130,6 +225,7 @@ async function loadWeather(){
     const cur = j.current || {};
     const icon = cur.icon || '';
     if (icon && icon !== lastIcon){ wIcon.src = icon; lastIcon = icon; }   // only reload img when it changes
+    applyWeatherTint(cur.code);                                            // tint the slide to match conditions
     setText(wCond, cur.label || (cur.code ? `Code ${cur.code}` : 'Weather'));
     setText(wTemp, cur.temp != null ? `${Math.round(cur.temp)}°` : '--°');
     setText(wFeels, cur.feels_like != null ? `Feels ${Math.round(cur.feels_like)}°` : 'Feels --°');
@@ -179,7 +275,7 @@ async function loadBus(){
             html += `<div class="bus-item">`
                   +   `<span class="bus-min">${minutes}</span>`
                   +   `<span class="bus-unit">min</span>`
-                  +   `<span class="bus-dest">${(b.dest || '')}${b.extra || ''}</span>`
+                  +   `<span class="bus-dest">${titleCase((b.dest || '') + (b.extra || ''))}</span>`
                   + `</div>`;
           });
         }
@@ -256,8 +352,10 @@ window.addEventListener('keydown', e => {
 /* ============================================================
    BOOT
    ============================================================ */
-syncTime().then(tickClock);
+applySky();                                   // paint immediately (device time)
+syncTime().then(() => { applySky(); tickClock(); });   // re-apply once synced
 setInterval(tickClock, 1000);
+setInterval(applySky, 60 * 1000);             // re-check the sky phase each minute
 setInterval(syncTime, 15 * 60 * 1000);
 
 loadWeather();
