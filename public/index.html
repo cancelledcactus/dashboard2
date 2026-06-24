@@ -1,159 +1,271 @@
-<!-- templates/index.html -->
+<!-- public/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Dashboard</title>
-  <meta http-equiv="refresh" content="43200">
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="refresh" content="43200"><!-- 12h failsafe reload for a 24/7 kiosk -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <link rel="stylesheet" href="/style.css">
   <link href="https://fonts.googleapis.com/css?family=Roboto:700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="dashboard">
-    <!-- Left: big clock -->
-    <div class="clock-section card">
-      <div id="clock" class="clock">--:--</div>
-      <div id="date" class="date">--</div>
-    </div>
 
-    <!-- Top-right: Bus info -->
-    <div class="bus-section card">
-      <div id="bus-list" class="bus-list">
-        <!-- arrivals injected here -->
-      </div>
-      <div class="bus-footer">
-        <div class="updated" id="bus-updated">Data updated —</div>
-      </div>
-    </div>
+  <div class="slider" id="slider">
+    <div class="track" id="track">
 
-    <!-- Bottom: Weather -->
-    <div class="weather-section card">
-      <div class="weather-top">
-        <div class="weather-left">
-          <div class="weather-current">
-            <img id="w-icon" src="" alt="icon">
-            <div>
-              <div id="w-cond" class="w-cond">Loading…</div>
-              <div id="w-temp" class="w-temp">--°F</div>
-              <div id="w-feels" class="w-feels">Feels --°F</div>
+      <!-- Slide 1: clock + bus -->
+      <section class="slide slide--home">
+        <div class="home-clock card">
+          <div class="clock">
+            <span id="clock-time" class="clock-time">--:--</span>
+            <span id="clock-ampm" class="ampm">--</span>
+          </div>
+          <div id="date" class="date">--</div>
+        </div>
+
+        <div class="home-bus card">
+          <div id="bus-list" class="bus-list"><!-- arrivals injected here --></div>
+          <div id="bus-updated" class="updated"></div>
+        </div>
+      </section>
+
+      <!-- Slide 2: weather -->
+      <section class="slide slide--weather">
+        <div class="weather-card card">
+          <div class="weather-top">
+            <div class="weather-current">
+              <img id="w-icon" src="" alt="">
+              <div>
+                <div id="w-cond" class="w-cond">Loading…</div>
+                <div id="w-temp" class="w-temp">--°</div>
+                <div id="w-feels" class="w-feels">Feels --°</div>
+              </div>
+            </div>
+            <div class="weather-right">
+              <div id="w-daily-avg" class="w-avg">Avg --°</div>
+              <div id="w-sun" class="w-sun">Sun --</div>
             </div>
           </div>
+          <div id="hourly-strip" class="hourly-strip"><!-- hourly cards injected here --></div>
         </div>
-        <div class="weather-right">
-          <div id="w-daily-avg" class="w-avg">Avg: --°F</div>
-          <div id="w-sun" class="w-sun">Sun: --</div>
-        </div>
-      </div>
+      </section>
 
-      <div class="hourly-strip" id="hourly-strip">
-        <!-- hourly cards injected here -->
-      </div>
     </div>
   </div>
 
-<script>
-/* Clock tick (client-side) */
-function tickClock() {
-  const d = new Date();
-  const time = d.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit', hour12: true});
-  const date = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
-  document.getElementById('clock').textContent = time;
-  document.getElementById('date').textContent = date;
-}
-setInterval(tickClock, 1000);
-tickClock();
+  <div class="dots" id="dots"></div>
 
-/* Fetch weather from Worker endpoint */
-/* Fetch weather from Worker endpoint */
-async function loadWeather() {
-  try {
-    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/weather", { cache: "no-store" });
+<script>
+"use strict";
+const API = "https://dashboard.lindevin0701.workers.dev";
+const TZ  = "America/New_York";
+
+/* tiny helper: only write to the DOM when the value actually changed
+   (avoids constant layout/paint churn that leaks memory on a 24/7 kiosk) */
+function setText(el, t){ if (el && el.textContent !== t) el.textContent = t; }
+
+/* ============================================================
+   CLOCK — synced to the Worker's /api/time, then ticked locally.
+   The Pi clock can drift; we learn the offset from the server
+   once every 15 min and keep ticking on-device in between.
+   ============================================================ */
+const clockTimeEl = document.getElementById('clock-time');
+const clockAmpmEl = document.getElementById('clock-ampm');
+const dateEl      = document.getElementById('date');
+
+const timeFmt = new Intl.DateTimeFormat('en-US', { timeZone:TZ, hour:'numeric', minute:'2-digit', hour12:true });
+const dateFmt = new Intl.DateTimeFormat('en-US', { timeZone:TZ, weekday:'long', month:'short', day:'numeric' });
+
+let timeOffset = 0;          // serverEpoch - clientEpoch
+let lastTimeStr = '', lastDateStr = '';
+
+async function syncTime(){
+  try{
+    const t0 = Date.now();
+    const res = await fetch(`${API}/api/time`, { cache:'no-store' });
+    if (!res.ok) return;
+    const j = await res.json();
+    const t1 = Date.now();
+    if (typeof j.epoch_ms === 'number'){
+      // account for ~half the round-trip so the offset lines up with "now"
+      timeOffset = j.epoch_ms + Math.round((t1 - t0) / 2) - t1;
+    }
+  }catch(_){ /* keep last offset; if never synced we fall back to the device clock */ }
+}
+
+function tickClock(){
+  const d = new Date(Date.now() + timeOffset);
+  let hh = '', mm = '', ap = '';
+  for (const p of timeFmt.formatToParts(d)){
+    if (p.type === 'hour') hh = p.value;
+    else if (p.type === 'minute') mm = p.value;
+    else if (p.type === 'dayPeriod') ap = p.value;
+  }
+  const t = `${hh}:${mm}`;
+  if (t !== lastTimeStr){ clockTimeEl.textContent = t; clockAmpmEl.textContent = ap; lastTimeStr = t; }
+  const ds = dateFmt.format(d);
+  if (ds !== lastDateStr){ dateEl.textContent = ds; lastDateStr = ds; }
+}
+
+/* ============================================================
+   WEATHER — polled every 5 min, DOM updated only on change
+   ============================================================ */
+const wIcon = document.getElementById('w-icon');
+const wCond = document.getElementById('w-cond');
+const wTemp = document.getElementById('w-temp');
+const wFeels = document.getElementById('w-feels');
+const wAvg = document.getElementById('w-daily-avg');
+const wSun = document.getElementById('w-sun');
+const hourlyStrip = document.getElementById('hourly-strip');
+let lastIcon = '', lastHourlyHTML = '';
+
+async function loadWeather(){
+  try{
+    const res = await fetch(`${API}/api/weather`, { cache:'no-store' });
+    if (!res.ok) return;
     const j = await res.json();
     if (!j) return;
 
     const cur = j.current || {};
-    document.getElementById('w-icon').src = cur.icon || '';
-    document.getElementById('w-cond').textContent = cur.label || (cur.code ? `Code ${cur.code}` : 'Weather');
-    document.getElementById('w-temp').textContent = cur.temp != null ? `${Math.round(cur.temp)}°F` : '--°F';
-    document.getElementById('w-feels').textContent = cur.feels_like != null ? `Feels ${Math.round(cur.feels_like)}°F` : 'Feels --°F';
-
-    document.getElementById('w-daily-avg').textContent = j.daily_avg ? `Avg: ${j.daily_avg}°F` : 'Avg: --';
+    const icon = cur.icon || '';
+    if (icon && icon !== lastIcon){ wIcon.src = icon; lastIcon = icon; }   // only reload img when it changes
+    setText(wCond, cur.label || (cur.code ? `Code ${cur.code}` : 'Weather'));
+    setText(wTemp, cur.temp != null ? `${Math.round(cur.temp)}°` : '--°');
+    setText(wFeels, cur.feels_like != null ? `Feels ${Math.round(cur.feels_like)}°` : 'Feels --°');
+    setText(wAvg, j.daily_avg ? `Avg ${j.daily_avg}°` : 'Avg --°');
     const sun = j.sun || {};
-    document.getElementById('w-sun').textContent = `${sun.label || 'Sun'}: ${sun.time || '--'}`;
+    setText(wSun, `${sun.label || 'Sun'} ${sun.time || '--'}`);
 
-    const strip = document.getElementById('hourly-strip');
-    strip.innerHTML = '';
-    (j.hourly || []).forEach(h => {
-      const el = document.createElement('div');
-      el.className = 'hour-card';
-      el.innerHTML = `
-        <div class="hour-time">${h.time || '--'}</div>
-        <img class="hour-icon" src="${h.icon || ''}" alt="">
-        <div class="hour-temp">${h.temp != null ? Math.round(h.temp) + '°' : '--'}</div>
-        <div class="hour-rain">🌧 ${h.rain ?? 0}%</div>
-      `;
-      strip.appendChild(el);
+    let html = '';
+    (j.hourly || []).slice(0, 6).forEach(h => {
+      html += `<div class="hour-card">`
+            +   `<div class="hour-time">${h.time || '--'}</div>`
+            +   `<img class="hour-icon" src="${h.icon || ''}" alt="">`
+            +   `<div class="hour-temp">${h.temp != null ? Math.round(h.temp) + '°' : '--'}</div>`
+            +   `<div class="hour-rain">🌧 ${h.rain ?? 0}%</div>`
+            + `</div>`;
     });
-  } catch(err) {
-    console.error("Weather fetch error:", err);
-  }
+    if (html !== lastHourlyHTML){ hourlyStrip.innerHTML = html; lastHourlyHTML = html; }
+  }catch(_){ /* keep last good weather on the screen */ }
 }
 
-/* Fetch bus data from Worker endpoint */
-async function loadBus() {
-  try {
-    const res = await fetch("https://dashboard.lindevin0701.workers.dev/api/bus", { cache: "no-store" });
+/* ============================================================
+   BUS — polled every 20s (was 5s), DOM updated only on change
+   ============================================================ */
+const busList = document.getElementById('bus-list');
+const busUpdated = document.getElementById('bus-updated');
+let lastBusHTML = null;
+
+async function loadBus(){
+  try{
+    const res = await fetch(`${API}/api/bus`, { cache:'no-store' });
+    if (!res.ok) return;
     const j = await res.json();
-    const list = document.getElementById('bus-list');
-    list.innerHTML = '';
 
-    if (j.hidden) {
-      document.getElementById('bus-updated').textContent = '';
-      const msg = document.createElement('div');
-      msg.className = 'muted';
-      msg.style.textAlign = 'center';
-      msg.style.padding = '90px';
-      msg.textContent = `🚌 Scheduled for ${j.scheduled_for}`;
-      list.appendChild(msg);
-      return;
-    }
-
-    if (!j.buses) {
-      list.innerHTML = `<div class="muted">Bus data unavailable</div>`;
-      return;
-    }
-
-    document.getElementById('bus-updated').textContent = 'Data updated ' + (new Date()).toLocaleTimeString();
-
-    for (const line of ['Q44-SBS','Q20']) {
-      if (j.buses[line] && j.buses[line].length) {
-        const header = document.createElement('div');
-        header.className = 'bus-group-header';
-        header.textContent = line;
-        list.appendChild(header);
-
-        j.buses[line].forEach(b => {
-          const li = document.createElement('div');
-          li.className = 'bus-item';
-          const minutes = b.minutes != null ? b.minutes : '?';
-          li.innerHTML = `<div class="route">${b.line}</div>
-                          <div class="detail">🚌 ${minutes} min • ${b.dest}${b.extra || ''}</div>`;
-          list.appendChild(li);
-        });
+    let html = '';
+    if (j.hidden){
+      html = `<div class="bus-empty">🚌 Next service ${j.scheduled_for || ''}</div>`;
+      setText(busUpdated, '');
+    } else if (!j.buses){
+      html = `<div class="bus-empty">Bus data unavailable</div>`;
+    } else {
+      for (const line of ['Q44-SBS','Q20']){
+        const arr = j.buses[line];
+        if (arr && arr.length){
+          html += `<div class="bus-group-header">${line}</div>`;
+          arr.forEach(b => {
+            const minutes = b.minutes != null ? b.minutes : '?';
+            html += `<div class="bus-item">`
+                  +   `<span class="bus-min">${minutes}</span>`
+                  +   `<span class="bus-unit">min</span>`
+                  +   `<span class="bus-dest">${(b.dest || '')}${b.extra || ''}</span>`
+                  + `</div>`;
+          });
+        }
       }
+      if (!html) html = `<div class="bus-empty">No buses right now</div>`;
+      setText(busUpdated, 'Updated ' + new Date(Date.now() + timeOffset)
+        .toLocaleTimeString('en-US', { timeZone:TZ, hour:'numeric', minute:'2-digit' }));
     }
-
-  } catch(err) {
-    console.error("Bus fetch error:", err);
-  }
+    if (html !== lastBusHTML){ busList.innerHTML = html; lastBusHTML = html; }
+  }catch(_){ /* keep last good bus list on the screen */ }
 }
 
-// Initial load
+/* ============================================================
+   SLIDESHOW — 2 slides, swipe / dots / arrow keys / auto-advance
+   ============================================================ */
+const slider = document.getElementById('slider');
+const track  = document.getElementById('track');
+const dotsWrap = document.getElementById('dots');
+const slides = Array.from(track.children);
+const COUNT = slides.length;
+const AUTO_MS = 14000;       // dwell per slide (slow)
+
+let index = 0;
+let dragging = false, startX = 0, dx = 0;
+let autoTimer = null;
+
+const dots = slides.map((_, i) => {
+  const b = document.createElement('button');
+  b.className = 'dot' + (i === 0 ? ' active' : '');
+  b.setAttribute('aria-label', `Go to slide ${i + 1}`);
+  b.addEventListener('click', () => { goTo(i); restartAuto(); });
+  dotsWrap.appendChild(b);
+  return b;
+});
+// keep taps on the dots from starting a swipe
+dotsWrap.addEventListener('pointerdown', e => e.stopPropagation());
+
+function goTo(i){
+  index = (i + COUNT) % COUNT;
+  track.style.transition = 'transform .9s cubic-bezier(.4,0,.2,1)';
+  track.style.transform = `translateX(${-index * 100}%)`;
+  dots.forEach((d, k) => d.classList.toggle('active', k === index));
+}
+function startAuto(){ autoTimer = setInterval(() => goTo(index + 1), AUTO_MS); }
+function restartAuto(){ clearInterval(autoTimer); startAuto(); }
+
+slider.addEventListener('pointerdown', e => {
+  dragging = true; startX = e.clientX; dx = 0;
+  track.style.transition = 'none';
+  clearInterval(autoTimer);
+  slider.setPointerCapture(e.pointerId);
+});
+slider.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  dx = e.clientX - startX;
+  track.style.transform = `translateX(calc(${-index * 100}% + ${dx}px))`;
+});
+function endDrag(){
+  if (!dragging) return;
+  dragging = false;
+  const w = slider.clientWidth || 1;
+  if (Math.abs(dx) > w * 0.15) goTo(index + (dx < 0 ? 1 : -1));
+  else goTo(index);
+  restartAuto();
+}
+slider.addEventListener('pointerup', endDrag);
+slider.addEventListener('pointercancel', endDrag);
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight'){ goTo(index + 1); restartAuto(); }
+  else if (e.key === 'ArrowLeft'){ goTo(index - 1); restartAuto(); }
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+syncTime().then(tickClock);
+setInterval(tickClock, 1000);
+setInterval(syncTime, 15 * 60 * 1000);
+
 loadWeather();
 loadBus();
-setInterval(loadWeather, 5 * 60 * 1000); // every 5 min
-setInterval(loadBus, 5 * 1000); // every 15 sec
+setInterval(loadWeather, 5 * 60 * 1000);
+setInterval(loadBus, 20 * 1000);
+
+startAuto();
 </script>
 </body>
 </html>
